@@ -126,21 +126,6 @@ node tools\generate-cosmetic-catalog.mjs `
 Review the generated diff and run the self-test before publishing. The plugin
 never downloads or mutates the catalog at runtime.
 
-To rebuild weapon-coupled charm positions from one or more reviewed
-`cs2-demotracer` evidence reports:
-
-```powershell
-.\tools\generate-charm-placement-catalog.ps1 `
-  -EvidencePath C:\path\to\evidence-a.json,C:\path\to\evidence-b.json `
-  -OutputPath .\charm_placements.json
-```
-
-The generator deduplicates inventory observations before grouping exact
-float32 positions by weapon definition. It never transfers a position between
-different weapon models. The published runtime file contains only weapon
-definition keys and `[x, y, z]` arrays; parser details, demo hashes, and
-observation counts remain in the input evidence reports.
-
 ## Installation
 
 1. Build or download the release.
