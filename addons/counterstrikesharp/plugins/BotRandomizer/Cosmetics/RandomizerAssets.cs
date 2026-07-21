@@ -5,14 +5,6 @@ internal static class RandomizerAssets
     internal const byte TerroristTeam = 2;
     internal const byte CounterTerroristTeam = 3;
 
-    internal static readonly KnifeDefinition[] Knives =
-    [
-        new("weapon_bayonet", 500, "weapons/models/knife/bayonet/weapon_bayonet.vmdl"),
-        new("weapon_knife_karambit", 507, "weapons/models/knife/karambit/weapon_knife_karambit.vmdl"),
-        new("weapon_knife_m9_bayonet", 508, "weapons/models/knife/m9_bayonet/weapon_knife_m9_bayonet.vmdl"),
-        new("weapon_knife_butterfly", 515, "weapons/models/knife/butterfly/weapon_knife_butterfly.vmdl")
-    ];
-
     internal static readonly IReadOnlyDictionary<string, ushort> KnifeDefIndexByName =
         new Dictionary<string, ushort>
         {

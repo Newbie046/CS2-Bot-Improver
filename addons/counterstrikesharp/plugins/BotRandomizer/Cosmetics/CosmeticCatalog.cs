@@ -8,6 +8,7 @@ internal sealed class CosmeticCatalog
     private readonly Dictionary<ushort, WeaponCatalogEntry> _weapons;
     private readonly Dictionary<string, WeaponCatalogEntry> _weaponsByDesignerName;
     private readonly Dictionary<ushort, IReadOnlyList<PaintCatalogEntry>> _knives;
+    private readonly Dictionary<(ushort DefIndex, int PaintKit), GloveCatalogEntry> _gloves;
 
     private CosmeticCatalog(CatalogDocument document)
     {
@@ -21,6 +22,7 @@ internal sealed class CosmeticCatalog
             entry => entry.DefIndex,
             entry => (IReadOnlyList<PaintCatalogEntry>)entry.Paints);
         Gloves = document.Gloves;
+        _gloves = document.Gloves.ToDictionary(entry => (entry.DefIndex, entry.PaintKit));
         StickerKits = document.StickerKits;
         KeychainDefinitions = document.KeychainDefinitions;
         MusicKits = document.MusicKits;
@@ -57,6 +59,9 @@ internal sealed class CosmeticCatalog
 
     internal bool TryGetKnifePaints(ushort defIndex, out IReadOnlyList<PaintCatalogEntry> paints)
         => _knives.TryGetValue(defIndex, out paints!);
+
+    internal bool TryGetGlove(ushort defIndex, int paintKit, out GloveCatalogEntry glove)
+        => _gloves.TryGetValue((defIndex, paintKit), out glove!);
 
     private static void Validate(CatalogDocument document)
     {

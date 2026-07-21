@@ -29,12 +29,13 @@ internal sealed class CosmeticRoller
         var modelPool = team == RandomizerAssets.CounterTerroristTeam
             ? RandomizerAssets.CounterTerroristModels
             : RandomizerAssets.TerroristModels;
-        var knifeDefinition = Pick(RandomizerAssets.Knives);
-        if (!_catalog.TryGetKnifePaints(knifeDefinition.DefIndex, out var knifePaints))
-            throw new InvalidOperationException($"No paint catalog for knife {knifeDefinition.DefIndex}.");
-
-        var knifePaint = Pick(knifePaints);
-        var glove = Pick(_catalog.Gloves);
+        var knife = PickWeighted(CosmeticWeights.Knives, value => value.Weight);
+        var gloveWeight = PickWeighted(CosmeticWeights.Gloves, value => value.Weight);
+        if (!_catalog.TryGetGlove(gloveWeight.DefIndex, gloveWeight.PaintKit, out var glove))
+        {
+            throw new InvalidOperationException(
+                $"No catalog entry for glove {gloveWeight.DefIndex}/{gloveWeight.PaintKit}.");
+        }
 
         return new BotCosmeticLoadout
         {
@@ -42,14 +43,27 @@ internal sealed class CosmeticRoller
             AgentModel = Pick(modelPool),
             MusicKit = preservedMusicKit ?? Pick(_catalog.MusicKits),
             Knife = new KnifeSelection(
-                knifeDefinition.DefIndex,
-                knifePaint.PaintKit,
-                DefaultWear(knifePaint.WearMin, knifePaint.WearMax)),
+                knife.DefIndex,
+                knife.PaintKit,
+                ResolveKnifeWear(knife)),
             Glove = new GloveSelection(
                 glove.DefIndex,
                 glove.PaintKit,
                 DefaultWear(glove.WearMin, glove.WearMax))
         };
+    }
+
+    private float ResolveKnifeWear(WeightedKnifeCosmetic knife)
+    {
+        if (knife.PaintKit == 0)
+            return 0.0f;
+        if (!_catalog.TryGetKnifePaints(knife.DefIndex, out var paints))
+            throw new InvalidOperationException($"No paint catalog for knife {knife.DefIndex}.");
+
+        var paint = paints.FirstOrDefault(value => value.PaintKit == knife.PaintKit)
+            ?? throw new InvalidOperationException(
+                $"No catalog entry for knife {knife.DefIndex}/{knife.PaintKit}.");
+        return DefaultWear(paint.WearMin, paint.WearMax);
     }
 
     internal WeaponCosmeticSelection? GetOrCreateWeapon(BotCosmeticLoadout loadout, ushort defIndex)
@@ -122,6 +136,32 @@ internal sealed class CosmeticRoller
         if (values.Count == 0)
             throw new InvalidOperationException("Cannot roll from an empty cosmetic pool.");
         return values[_random.Next(values.Count)];
+    }
+
+    private T PickWeighted<T>(IReadOnlyList<T> values, Func<T, int> weightSelector)
+    {
+        if (values.Count == 0)
+            throw new InvalidOperationException("Cannot roll from an empty weighted cosmetic pool.");
+
+        var totalWeight = 0;
+        foreach (var value in values)
+        {
+            var weight = weightSelector(value);
+            if (weight <= 0)
+                throw new InvalidOperationException("Cosmetic weights must be positive.");
+            totalWeight = checked(totalWeight + weight);
+        }
+
+        var roll = _random.Next(totalWeight);
+        foreach (var value in values)
+        {
+            var weight = weightSelector(value);
+            if (roll < weight)
+                return value;
+            roll -= weight;
+        }
+
+        throw new InvalidOperationException("Weighted cosmetic roll did not resolve a value.");
     }
 
     private static float DefaultWear(float minimum, float maximum)

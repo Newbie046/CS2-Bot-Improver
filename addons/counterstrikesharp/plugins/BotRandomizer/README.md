@@ -38,9 +38,14 @@ charm.
   override plugins. Releasing a lease restores the frozen random baseline by
   default.
 
-The plugin deliberately keeps the original, verified four-knife subclass set.
-The larger catalog is used to select only paints valid for the selected weapon,
-knife, or glove definition; it does not guess IDs from numeric ranges.
+Knife and glove selection uses embedded joint cosmetic weights instead of
+uniform catalog rolls. The 4,014-point knife pool contains 214 knife/paint
+combinations: Butterfly 1,606 (40.01%), Karambit 1,126 (28.05%), M9 Bayonet
+605 (15.07%), Skeleton Knife 181 (4.51%), and a 496-point long tail across the
+remaining styles. The 3,335-point glove pool contains 64 combinations: Sport
+Gloves 1,838 (55.11%), Specialist Gloves 760 (22.79%), Driver Gloves 481
+(14.42%), and a 256-point long tail. Every non-vanilla knife and glove pair is
+validated against the bundled catalog.
 
 ## Runtime behavior
 
@@ -107,10 +112,10 @@ dotnet run `
 
 The self-test validates catalog counts and provenance, exact designer-name to
 definition-index mappings (including BotBuy's CT replacement guns), integer
-attribute bit encoding, process-unique custom item IDs, sticker schema bounds,
-Sticker Slab payloads, keychain seed bounds, demo-observed weapon-specific
-charm placement, 70% charm probability, wear-cache isolation, and ownership
-lease expiry.
+attribute bit encoding, process-unique custom item IDs, weighted knife/glove
+totals and catalog membership, sticker schema bounds, Sticker Slab payloads,
+keychain seed bounds, weapon-specific charm placement, 70% charm probability,
+wear-cache isolation, and ownership lease expiry.
 
 ## Refresh the catalog
 

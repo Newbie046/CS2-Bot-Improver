@@ -41,6 +41,48 @@ foreach (var (designerName, defIndex) in new (string, ushort)[]
 Assert(catalog.Weapons.All(weapon => weapon.DesignerName.StartsWith("weapon_", StringComparison.Ordinal)),
     "weapon designer names");
 
+Assert(CosmeticWeights.Knives.Length == 214, "weighted knife combination count");
+Assert(CosmeticWeights.Knives.Sum(value => value.Weight) == CosmeticWeights.KnifeWeightTotal,
+    "weighted knife total");
+Assert(CosmeticWeights.Knives.All(value => value.Weight > 0), "positive knife weights");
+Assert(CosmeticWeights.Knives.Select(value => (value.DefIndex, value.PaintKit)).Distinct().Count()
+    == CosmeticWeights.Knives.Length, "unique weighted knife combinations");
+Assert(CosmeticWeights.Knives.Where(value => value.DefIndex == 515).Sum(value => value.Weight) == 1606,
+    "butterfly knife weight");
+Assert(CosmeticWeights.Knives.Where(value => value.DefIndex == 507).Sum(value => value.Weight) == 1126,
+    "karambit weight");
+Assert(CosmeticWeights.Knives.Where(value => value.DefIndex == 508).Sum(value => value.Weight) == 605,
+    "M9 bayonet weight");
+Assert(CosmeticWeights.Knives.Where(value => value.DefIndex == 525).Sum(value => value.Weight) == 181,
+    "skeleton knife weight");
+foreach (var value in CosmeticWeights.Knives)
+{
+    Assert(RandomizerAssets.KnifeDefIndexByName.Values.Contains(value.DefIndex),
+        $"weighted knife definition {value.DefIndex}");
+    Assert(value.PaintKit == 0
+        || catalog.TryGetKnifePaints(value.DefIndex, out var paints)
+        && paints.Any(paint => paint.PaintKit == value.PaintKit),
+        $"weighted knife catalog entry {value.DefIndex}/{value.PaintKit}");
+}
+
+Assert(CosmeticWeights.Gloves.Length == 64, "weighted glove combination count");
+Assert(CosmeticWeights.Gloves.Sum(value => value.Weight) == CosmeticWeights.GloveWeightTotal,
+    "weighted glove total");
+Assert(CosmeticWeights.Gloves.All(value => value.Weight > 0), "positive glove weights");
+Assert(CosmeticWeights.Gloves.Select(value => (value.DefIndex, value.PaintKit)).Distinct().Count()
+    == CosmeticWeights.Gloves.Length, "unique weighted glove combinations");
+Assert(CosmeticWeights.Gloves.Where(value => value.DefIndex == 5030).Sum(value => value.Weight) == 1838,
+    "sport glove weight");
+Assert(CosmeticWeights.Gloves.Where(value => value.DefIndex == 5034).Sum(value => value.Weight) == 760,
+    "specialist glove weight");
+Assert(CosmeticWeights.Gloves.Where(value => value.DefIndex == 5031).Sum(value => value.Weight) == 481,
+    "driver glove weight");
+foreach (var value in CosmeticWeights.Gloves)
+{
+    Assert(catalog.TryGetGlove(value.DefIndex, value.PaintKit, out _),
+        $"weighted glove catalog entry {value.DefIndex}/{value.PaintKit}");
+}
+
 Assert(BitConverter.SingleToInt32Bits(AttributeEncoding.UInt32BitsToSingle(0xDEADBEEF))
     == unchecked((int)0xDEADBEEF), "uint attribute bit encoding");
 Assert(BitConverter.SingleToInt32Bits(AttributeEncoding.Int32BitsToSingle(-1234567))
@@ -65,6 +107,25 @@ foreach (var weaponEntry in catalog.Weapons)
     Assert(roller.GetOrCreateWeapon(allWeaponsLoadout, weaponEntry.DefIndex) is not null,
         $"weapon {weaponEntry.DefIndex} roll");
 }
+
+var weightedRoller = new CosmeticRoller(catalog, charmPlacements, new Random(20260722));
+var weightedKnifeCounts = new Dictionary<ushort, int>();
+var weightedGloveCounts = new Dictionary<ushort, int>();
+const int weightedTrials = 20000;
+for (var iteration = 0; iteration < weightedTrials; iteration++)
+{
+    var loadout = weightedRoller.RollLoadout(RandomizerAssets.TerroristTeam);
+    weightedKnifeCounts[loadout.Knife.DefIndex] = weightedKnifeCounts.GetValueOrDefault(loadout.Knife.DefIndex) + 1;
+    weightedGloveCounts[loadout.Glove.DefIndex] = weightedGloveCounts.GetValueOrDefault(loadout.Glove.DefIndex) + 1;
+}
+Assert(weightedKnifeCounts.GetValueOrDefault((ushort)515) is >= 7700 and <= 8300,
+    "butterfly knife weighted roll");
+Assert(weightedKnifeCounts.GetValueOrDefault((ushort)507) is >= 5300 and <= 5900,
+    "karambit weighted roll");
+Assert(weightedKnifeCounts.GetValueOrDefault((ushort)508) is >= 2700 and <= 3300,
+    "M9 bayonet weighted roll");
+Assert(weightedGloveCounts.GetValueOrDefault((ushort)5030) is >= 10700 and <= 11300,
+    "sport glove weighted roll");
 
 var sawStickers = false;
 var sawKeychain = false;
