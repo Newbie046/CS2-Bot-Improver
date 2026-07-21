@@ -38,9 +38,10 @@ charm.
   override plugins. Releasing a lease restores the frozen random baseline by
   default.
 
-The plugin deliberately keeps the original, verified four-knife subclass set.
-The larger catalog is used to select only paints valid for the selected weapon,
-knife, or glove definition; it does not guess IDs from numeric ranges.
+All 20 knife subclasses participate in a weighted type pool. After a knife type
+is selected, its valid paint pool remains uniformly random. Glove selection is
+unchanged. The catalog is used to select only paints valid for the selected
+weapon, knife, or glove definition; it does not guess IDs from numeric ranges.
 
 ## Runtime behavior
 
@@ -108,7 +109,8 @@ dotnet run `
 The self-test validates catalog counts and provenance, exact designer-name to
 definition-index mappings (including BotBuy's CT replacement guns), integer
 attribute bit encoding, process-unique custom item IDs, sticker schema bounds,
-Sticker Slab payloads, keychain seed bounds, demo-observed weapon-specific
+the 20-entry weighted knife type pool, Sticker Slab payloads, keychain seed
+bounds, demo-observed weapon-specific
 charm placement, 70% charm probability, wear-cache isolation, and ownership
 lease expiry.
 

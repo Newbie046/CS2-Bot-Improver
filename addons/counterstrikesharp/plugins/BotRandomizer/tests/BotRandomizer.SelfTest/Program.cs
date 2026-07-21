@@ -41,6 +41,22 @@ foreach (var (designerName, defIndex) in new (string, ushort)[]
 Assert(catalog.Weapons.All(weapon => weapon.DesignerName.StartsWith("weapon_", StringComparison.Ordinal)),
     "weapon designer names");
 
+Assert(RandomizerAssets.Knives.Length == 20, "knife type count");
+Assert(RandomizerAssets.Knives.All(knife => knife.Weight > 0), "positive knife type weights");
+Assert(RandomizerAssets.Knives.Select(knife => knife.DefIndex).Distinct().Count()
+    == RandomizerAssets.Knives.Length, "unique knife definitions");
+Assert(RandomizerAssets.Knives.Sum(knife => knife.Weight) == RandomizerAssets.KnifeWeightTotal,
+    "knife type weight total");
+Assert(RandomizerAssets.Knives.Single(knife => knife.DefIndex == 515).Weight == 1606,
+    "butterfly knife weight");
+Assert(RandomizerAssets.Knives.Single(knife => knife.DefIndex == 507).Weight == 1126,
+    "karambit weight");
+Assert(RandomizerAssets.Knives.Single(knife => knife.DefIndex == 508).Weight == 605,
+    "M9 bayonet weight");
+foreach (var knife in RandomizerAssets.Knives)
+    Assert(catalog.TryGetKnifePaints(knife.DefIndex, out var paints) && paints.Count > 0,
+        $"knife paint catalog {knife.DefIndex}");
+
 Assert(BitConverter.SingleToInt32Bits(AttributeEncoding.UInt32BitsToSingle(0xDEADBEEF))
     == unchecked((int)0xDEADBEEF), "uint attribute bit encoding");
 Assert(BitConverter.SingleToInt32Bits(AttributeEncoding.Int32BitsToSingle(-1234567))
@@ -65,6 +81,22 @@ foreach (var weaponEntry in catalog.Weapons)
     Assert(roller.GetOrCreateWeapon(allWeaponsLoadout, weaponEntry.DefIndex) is not null,
         $"weapon {weaponEntry.DefIndex} roll");
 }
+
+var weightedKnifeRoller = new CosmeticRoller(catalog, charmPlacements, new Random(20260722));
+var weightedKnifeCounts = new Dictionary<ushort, int>();
+const int weightedKnifeTrials = 20000;
+for (var iteration = 0; iteration < weightedKnifeTrials; iteration++)
+{
+    var loadout = weightedKnifeRoller.RollLoadout(RandomizerAssets.TerroristTeam);
+    weightedKnifeCounts[loadout.Knife.DefIndex] =
+        weightedKnifeCounts.GetValueOrDefault(loadout.Knife.DefIndex) + 1;
+}
+Assert(weightedKnifeCounts.GetValueOrDefault((ushort)515) is >= 7600 and <= 8400,
+    "butterfly knife weighted roll");
+Assert(weightedKnifeCounts.GetValueOrDefault((ushort)507) is >= 5200 and <= 6000,
+    "karambit weighted roll");
+Assert(weightedKnifeCounts.GetValueOrDefault((ushort)508) is >= 2800 and <= 3200,
+    "M9 bayonet weighted roll");
 
 var sawStickers = false;
 var sawKeychain = false;

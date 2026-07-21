@@ -4,13 +4,30 @@ internal static class RandomizerAssets
 {
     internal const byte TerroristTeam = 2;
     internal const byte CounterTerroristTeam = 3;
+    internal const int KnifeWeightTotal = 4015;
 
     internal static readonly KnifeDefinition[] Knives =
     [
-        new("weapon_bayonet", 500, "weapons/models/knife/bayonet/weapon_bayonet.vmdl"),
-        new("weapon_knife_karambit", 507, "weapons/models/knife/karambit/weapon_knife_karambit.vmdl"),
-        new("weapon_knife_m9_bayonet", 508, "weapons/models/knife/m9_bayonet/weapon_knife_m9_bayonet.vmdl"),
-        new("weapon_knife_butterfly", 515, "weapons/models/knife/butterfly/weapon_knife_butterfly.vmdl")
+        new(500, 19),   // Bayonet
+        new(503, 25),   // Classic Knife
+        new(505, 56),   // Flip Knife
+        new(506, 10),   // Gut Knife
+        new(507, 1126), // Karambit
+        new(508, 605),  // M9 Bayonet
+        new(509, 54),   // Huntsman Knife
+        new(512, 29),   // Falchion Knife
+        new(514, 2),    // Bowie Knife
+        new(515, 1606), // Butterfly Knife
+        new(516, 4),    // Shadow Daggers
+        new(517, 20),   // Paracord Knife
+        new(518, 16),   // Survival Knife
+        new(519, 25),   // Ursus Knife
+        new(520, 1),    // Navaja Knife
+        new(521, 41),   // Nomad Knife
+        new(522, 117),  // Stiletto Knife
+        new(523, 66),   // Talon Knife
+        new(525, 181),  // Skeleton Knife
+        new(526, 12)    // Kukri Knife
     ];
 
     internal static readonly IReadOnlyDictionary<string, ushort> KnifeDefIndexByName =

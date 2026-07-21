@@ -29,7 +29,7 @@ internal sealed class CosmeticRoller
         var modelPool = team == RandomizerAssets.CounterTerroristTeam
             ? RandomizerAssets.CounterTerroristModels
             : RandomizerAssets.TerroristModels;
-        var knifeDefinition = Pick(RandomizerAssets.Knives);
+        var knifeDefinition = PickKnifeDefinition();
         if (!_catalog.TryGetKnifePaints(knifeDefinition.DefIndex, out var knifePaints))
             throw new InvalidOperationException($"No paint catalog for knife {knifeDefinition.DefIndex}.");
 
@@ -122,6 +122,20 @@ internal sealed class CosmeticRoller
         if (values.Count == 0)
             throw new InvalidOperationException("Cannot roll from an empty cosmetic pool.");
         return values[_random.Next(values.Count)];
+    }
+
+    private KnifeDefinition PickKnifeDefinition()
+    {
+        var roll = _random.Next(RandomizerAssets.KnifeWeightTotal);
+        foreach (var knife in RandomizerAssets.Knives)
+        {
+            if (roll < knife.Weight)
+                return knife;
+            roll -= knife.Weight;
+        }
+
+        throw new InvalidOperationException(
+            "Knife weights do not match the configured total.");
     }
 
     private static float DefaultWear(float minimum, float maximum)

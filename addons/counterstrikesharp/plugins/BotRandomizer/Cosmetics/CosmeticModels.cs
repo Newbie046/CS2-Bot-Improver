@@ -20,9 +20,8 @@ internal sealed record GloveCatalogEntry(
     float WearMax);
 
 internal readonly record struct KnifeDefinition(
-    string DesignerName,
     ushort DefIndex,
-    string ModelPath);
+    int Weight);
 
 internal sealed record StickerSelection(
     uint DefIndex,
