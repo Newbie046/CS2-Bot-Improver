@@ -19,15 +19,10 @@ internal sealed record GloveCatalogEntry(
     float WearMin,
     float WearMax);
 
-internal readonly record struct WeightedKnifeCosmetic(
+internal readonly record struct KnifeDefinition(
+    string DesignerName,
     ushort DefIndex,
-    int PaintKit,
-    int Weight);
-
-internal readonly record struct WeightedGloveCosmetic(
-    ushort DefIndex,
-    int PaintKit,
-    int Weight);
+    string ModelPath);
 
 internal sealed record StickerSelection(
     uint DefIndex,
