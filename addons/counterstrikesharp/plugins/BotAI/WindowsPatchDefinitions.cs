@@ -6,6 +6,23 @@ internal static class WindowsPatchDefinitions
         new Dictionary<string, (string signature, string patch, string expectedOriginal, int patchOffset)>()
     {
 
+        // CCSBot::Upkeep adds two bot-specific trig results to its persistent
+        // look offsets every tick. Replace only those two calls with 0.0f;
+        // global trigonometry helpers and the rest of native aiming stay intact.
+        ["Upkeep_BotCOS_ZeroDrift"] = (
+            signature: "48 8B 05 ? ? ? ? F3 0F 10 40 30 F3 0F 59 05 ? ? ? ? E8 ? ? ? ? F3 0F 59 C6 F3 0F 58 87 94 59 00 00 F3 0F 11 87 94 59 00 00",
+            patch: "0F 57 C0 90 90",
+            expectedOriginal: "E8 ? ? ? ?",
+            patchOffset: 20
+        ),
+
+        ["Upkeep_BotSIN_ZeroDrift"] = (
+            signature: "48 8B 05 ? ? ? ? F3 0F 10 40 30 F3 0F 59 05 ? ? ? ? E8 ? ? ? ? F3 0F 59 C6 F3 0F 58 87 8C 59 00 00 F3 0F 11 87 8C 59 00 00",
+            patch: "0F 57 C0 90 90",
+            expectedOriginal: "E8 ? ? ? ?",
+            patchOffset: 20
+        ),
+
         // Force HasVisitedEnemySpawn = 1 so bots don't revisit enemy spawn
         ["HasVisitedEnemySpawn"] = (
         signature: "40 88 B7 20 05 00 00",
