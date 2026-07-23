@@ -1,8 +1,36 @@
 namespace BotRandomizer;
 
+internal enum CosmeticRarity
+{
+    Consumer,
+    Industrial,
+    MilSpec,
+    Restricted,
+    Classified,
+    Covert,
+    Contraband
+}
+
+internal enum StickerFinish
+{
+    Paper,
+    Glitter,
+    Holo,
+    Foil,
+    Gold,
+    Lenticular
+}
+
 internal sealed record PaintCatalogEntry(
     int PaintKit,
+    CosmeticRarity Rarity,
     bool Legacy,
+    float WearMin,
+    float WearMax);
+
+internal sealed record KnifePaintCatalogEntry(
+    int PaintKit,
+    string Finish,
     float WearMin,
     float WearMax);
 
@@ -18,6 +46,11 @@ internal sealed record GloveCatalogEntry(
     int PaintKit,
     float WearMin,
     float WearMax);
+
+internal sealed record StickerCatalogEntry(
+    uint DefIndex,
+    StickerFinish Finish,
+    int Category);
 
 internal readonly record struct KnifeDefinition(
     ushort DefIndex,

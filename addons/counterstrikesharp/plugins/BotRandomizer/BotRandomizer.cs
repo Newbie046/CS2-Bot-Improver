@@ -93,8 +93,7 @@ public sealed class BotRandomizerPlugin : BasePlugin
             var charmPlacements = CharmPlacementCatalog.Load(placementPath, _catalog);
             _roller = new CosmeticRoller(_catalog, charmPlacements);
             Logger.LogInformation(
-                "[BotRandomizer] Catalog {Commit}: {Weapons} weapons, {Paints} weapon paints, {Stickers} stickers, {Charms} charms; {CharmPositions} charm positions for {CharmWeapons} weapons",
-                _catalog.SourceCommit[..12],
+                "[BotRandomizer] Catalog loaded: {Weapons} weapons, {Paints} weapon paints, {Stickers} stickers, {Charms} charms; {CharmPositions} charm positions for {CharmWeapons} weapons",
                 _catalog.WeaponCount,
                 _catalog.WeaponPaintCount,
                 _catalog.StickerKits.Count,
@@ -567,7 +566,7 @@ public sealed class BotRandomizerPlugin : BasePlugin
             $"BotRandomizer version={ModuleVersion} api={BotRandomizerApiContract.Major}.{BotRandomizerApiContract.Minor} "
             + $"enabled={Format(_options.Enabled)} native={Format(_applicator?.NativeAvailable == true)} "
             + $"weapon_prebuild={Format(_weaponItemViews?.NativeAvailable == true)} "
-            + $"catalog={(_catalog is null ? "invalid" : _catalog.SourceCommit[..12])}");
+            + $"catalog={(_catalog is null ? "invalid" : "loaded")}");
         command.ReplyToCommand(
             $"weapons={Format(_options.Weapons)} knives={Format(_options.Knives)} "
             + $"gloves={Format(_options.Gloves)} agents={Format(_options.Agents)} "

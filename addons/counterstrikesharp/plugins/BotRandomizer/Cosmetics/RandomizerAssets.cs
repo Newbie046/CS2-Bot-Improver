@@ -4,31 +4,83 @@ internal static class RandomizerAssets
 {
     internal const byte TerroristTeam = 2;
     internal const byte CounterTerroristTeam = 3;
-    internal const int KnifeWeightTotal = 4015;
 
     internal static readonly KnifeDefinition[] Knives =
     [
-        new(500, 19),   // Bayonet
-        new(503, 25),   // Classic Knife
-        new(505, 56),   // Flip Knife
-        new(506, 10),   // Gut Knife
-        new(507, 1126), // Karambit
-        new(508, 605),  // M9 Bayonet
-        new(509, 54),   // Huntsman Knife
-        new(512, 29),   // Falchion Knife
-        new(514, 2),    // Bowie Knife
-        new(515, 1606), // Butterfly Knife
-        new(516, 4),    // Shadow Daggers
-        new(517, 20),   // Paracord Knife
-        new(518, 16),   // Survival Knife
-        new(519, 25),   // Ursus Knife
-        new(520, 1),    // Navaja Knife
-        new(521, 41),   // Nomad Knife
-        new(522, 117),  // Stiletto Knife
-        new(523, 66),   // Talon Knife
-        new(525, 181),  // Skeleton Knife
-        new(526, 12)    // Kukri Knife
+        // The four dominant types hold 70% together.
+        new(515, 25), // Butterfly
+        new(507, 21), // Karambit
+        new(508, 17), // M9 Bayonet
+        new(500, 7),  // Bayonet
+
+        // The remaining 30% excludes near-zero types. Classic keeps 3%.
+        new(525, 7), // Skeleton
+        new(522, 6), // Stiletto
+        new(523, 5), // Talon
+        new(505, 4), // Flip
+        new(509, 3), // Huntsman
+        new(503, 3), // Classic
+        new(519, 2)  // Ursus
     ];
+
+    // Soft family weights keep the pool varied.
+    internal static int GetGloveVariantWeight(ushort defIndex)
+        => defIndex switch
+        {
+            5030 => 4, // Sport Gloves: 2x baseline
+            5034 => 3, // Specialist Gloves: 1.5x baseline
+            _ => 2
+        };
+
+    internal static int GetWeaponRarityWeight(CosmeticRarity rarity)
+        => rarity switch
+        {
+            CosmeticRarity.Consumer => 1,
+            CosmeticRarity.Industrial => 3,
+            CosmeticRarity.MilSpec => 10,
+            CosmeticRarity.Restricted => 22,
+            CosmeticRarity.Classified => 23,
+            CosmeticRarity.Covert => 40,
+            CosmeticRarity.Contraband => 1,
+            _ => throw new ArgumentOutOfRangeException(nameof(rarity))
+        };
+
+    internal static int GetStickerFinishWeight(StickerFinish finish)
+        => finish switch
+        {
+            StickerFinish.Paper => 43,
+            StickerFinish.Glitter => 8,
+            StickerFinish.Holo => 28,
+            StickerFinish.Foil => 9,
+            StickerFinish.Gold => 11,
+            StickerFinish.Lenticular => 1,
+            _ => throw new ArgumentOutOfRangeException(nameof(finish))
+        };
+
+    // Four-sticker crafts favor deliberate Holo/Gold themes.
+    internal static int GetFourRepeatStickerFinishWeight(StickerFinish finish)
+        => finish switch
+        {
+            StickerFinish.Paper => 31,
+            StickerFinish.Glitter => 11,
+            StickerFinish.Holo => 40,
+            StickerFinish.Foil => 7,
+            StickerFinish.Gold => 11,
+            StickerFinish.Lenticular => 1,
+            _ => throw new ArgumentOutOfRangeException(nameof(finish))
+        };
+
+    internal static int GetFourMixedStickerFinishWeight(StickerFinish finish)
+        => finish switch
+        {
+            StickerFinish.Paper => 31,
+            StickerFinish.Glitter => 5,
+            StickerFinish.Holo => 22,
+            StickerFinish.Foil => 8,
+            StickerFinish.Gold => 34,
+            StickerFinish.Lenticular => 1,
+            _ => throw new ArgumentOutOfRangeException(nameof(finish))
+        };
 
     internal static readonly IReadOnlyDictionary<string, ushort> KnifeDefIndexByName =
         new Dictionary<string, ushort>

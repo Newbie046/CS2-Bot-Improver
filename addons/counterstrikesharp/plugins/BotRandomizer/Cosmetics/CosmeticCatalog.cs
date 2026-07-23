@@ -7,29 +7,43 @@ internal sealed class CosmeticCatalog
 {
     private readonly Dictionary<ushort, WeaponCatalogEntry> _weapons;
     private readonly Dictionary<string, WeaponCatalogEntry> _weaponsByDesignerName;
-    private readonly Dictionary<ushort, IReadOnlyList<PaintCatalogEntry>> _knives;
+    private readonly Dictionary<ushort, IReadOnlyList<KnifePaintCatalogEntry>> _knives;
+    private readonly Dictionary<string, int> _knifeFinishWeights;
+    private readonly IReadOnlyList<IReadOnlyList<StickerCatalogEntry>> _stickerCategoryPools;
 
     private CosmeticCatalog(CatalogDocument document)
     {
-        SourceRepository = document.Source.Repository;
-        SourceCommit = document.Source.Commit;
         _weapons = document.Weapons.ToDictionary(entry => entry.DefIndex);
         _weaponsByDesignerName = document.Weapons.ToDictionary(
             entry => entry.DesignerName,
             StringComparer.Ordinal);
         _knives = document.Knives.ToDictionary(
             entry => entry.DefIndex,
-            entry => (IReadOnlyList<PaintCatalogEntry>)entry.Paints);
+            entry => (IReadOnlyList<KnifePaintCatalogEntry>)entry.Paints);
+        _knifeFinishWeights = document.KnifeFinishPreferences.ToDictionary(
+            entry => entry.Finish,
+            entry => entry.Weight,
+            StringComparer.Ordinal);
         Gloves = document.Gloves;
+        StickerCategories = document.StickerCategories;
         StickerKits = document.StickerKits;
+        var stickerGroups = document.StickerKits
+            .GroupBy(entry => entry.Category)
+            .ToDictionary(
+                group => group.Key,
+                group => (IReadOnlyList<StickerCatalogEntry>)group.ToArray());
+        _stickerCategoryPools = document.StickerCategories
+            .Select((_, index) => stickerGroups[index])
+            .ToArray();
         KeychainDefinitions = document.KeychainDefinitions;
         MusicKits = document.MusicKits;
     }
 
-    internal string SourceRepository { get; }
-    internal string SourceCommit { get; }
     internal IReadOnlyList<GloveCatalogEntry> Gloves { get; }
-    internal IReadOnlyList<uint> StickerKits { get; }
+    internal IReadOnlyList<string> StickerCategories { get; }
+    internal IReadOnlyList<StickerCatalogEntry> StickerKits { get; }
+    internal IReadOnlyList<IReadOnlyList<StickerCatalogEntry>> StickerCategoryPools
+        => _stickerCategoryPools;
     internal IReadOnlyList<uint> KeychainDefinitions { get; }
     internal IReadOnlyList<int> MusicKits { get; }
     internal IReadOnlyCollection<WeaponCatalogEntry> Weapons => _weapons.Values;
@@ -42,7 +56,8 @@ internal sealed class CosmeticCatalog
         using var stream = File.OpenRead(path);
         var document = JsonSerializer.Deserialize<CatalogDocument>(stream, new JsonSerializerOptions
         {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
         })
             ?? throw new InvalidDataException("Cosmetic catalog is empty.");
         Validate(document);
@@ -55,22 +70,21 @@ internal sealed class CosmeticCatalog
     internal bool TryGetWeapon(string designerName, out WeaponCatalogEntry entry)
         => _weaponsByDesignerName.TryGetValue(designerName, out entry!);
 
-    internal bool TryGetKnifePaints(ushort defIndex, out IReadOnlyList<PaintCatalogEntry> paints)
+    internal bool TryGetKnifePaints(
+        ushort defIndex,
+        out IReadOnlyList<KnifePaintCatalogEntry> paints)
         => _knives.TryGetValue(defIndex, out paints!);
+
+    internal int GetKnifeFinishWeight(string finish)
+        => _knifeFinishWeights.GetValueOrDefault(finish, 1);
 
     private static void Validate(CatalogDocument document)
     {
-        if (document.Source is null
-            || document.Source.Repository != "ianlucas/cs2-lib"
-            || document.Source.Commit.Length != 40
-            || document.Source.Commit.Any(ch => !Uri.IsHexDigit(ch)))
-        {
-            throw new InvalidDataException("Catalog source metadata is invalid.");
-        }
-
         if (document.Weapons.Count == 0
             || document.Knives.Count == 0
+            || document.KnifeFinishPreferences.Count == 0
             || document.Gloves.Count == 0
+            || document.StickerCategories.Count == 0
             || document.StickerKits.Count == 0
             || document.KeychainDefinitions.Count == 0
             || document.MusicKits.Count == 0)
@@ -81,8 +95,11 @@ internal sealed class CosmeticCatalog
         EnsureUnique(document.Weapons.Select(entry => entry.DefIndex), "weapon definition");
         EnsureUnique(document.Weapons.Select(entry => entry.DesignerName), "weapon designer name");
         EnsureUnique(document.Knives.Select(entry => entry.DefIndex), "knife definition");
+        EnsureUnique(document.KnifeFinishPreferences.Select(entry => entry.Finish),
+            "knife finish preference");
         EnsureUnique(document.Gloves.Select(entry => (entry.DefIndex, entry.PaintKit)), "glove variant");
-        EnsureUnique(document.StickerKits, "sticker kit");
+        EnsureUnique(document.StickerCategories, "sticker category");
+        EnsureUnique(document.StickerKits.Select(entry => entry.DefIndex), "sticker kit");
         EnsureUnique(document.KeychainDefinitions, "keychain definition");
         EnsureUnique(document.MusicKits, "music kit");
 
@@ -96,14 +113,23 @@ internal sealed class CosmeticCatalog
             }
             if (weapon.StickerSchemaCount <= 0 || weapon.LegacyStickerSchemaCount <= 0)
                 throw new InvalidDataException($"Weapon {weapon.DefIndex} has invalid sticker schemas.");
-            ValidatePaints(weapon.Paints, $"weapon {weapon.DefIndex}");
+            ValidateWeaponPaints(weapon.Paints, $"weapon {weapon.DefIndex}");
         }
 
         foreach (var knife in document.Knives)
         {
             if (knife.DefIndex == 0 || knife.Paints.Count == 0)
                 throw new InvalidDataException($"Knife {knife.DefIndex} has no valid paints.");
-            ValidatePaints(knife.Paints, $"knife {knife.DefIndex}");
+            ValidateKnifePaints(knife.Paints, $"knife {knife.DefIndex}");
+        }
+
+        foreach (var preference in document.KnifeFinishPreferences)
+        {
+            if (string.IsNullOrWhiteSpace(preference.Finish)
+                || preference.Weight <= 0)
+            {
+                throw new InvalidDataException("Catalog contains an invalid knife preference.");
+            }
         }
 
         foreach (var glove in document.Gloves)
@@ -113,21 +139,47 @@ internal sealed class CosmeticCatalog
             ValidateWear(glove.WearMin, glove.WearMax, $"glove {glove.DefIndex}/{glove.PaintKit}");
         }
 
-        if (document.StickerKits.Any(value => value == 0)
+        if (document.StickerKits.Any(entry =>
+                entry.DefIndex == 0
+                || !Enum.IsDefined(entry.Finish)
+                || entry.Category < 0
+                || entry.Category >= document.StickerCategories.Count)
             || document.KeychainDefinitions.Any(value => value == 0)
             || !document.KeychainDefinitions.Contains(37)
             || document.MusicKits.Any(value => value <= 0))
         {
             throw new InvalidDataException("Catalog contains invalid cosmetic indexes.");
         }
+
+        var populatedStickerCategories = document.StickerKits
+            .Select(entry => entry.Category)
+            .Distinct()
+            .Count();
+        if (populatedStickerCategories != document.StickerCategories.Count)
+            throw new InvalidDataException("Catalog contains an empty sticker category.");
     }
 
-    private static void ValidatePaints(IReadOnlyList<PaintCatalogEntry> paints, string owner)
+    private static void ValidateWeaponPaints(
+        IReadOnlyList<PaintCatalogEntry> paints,
+        string owner)
     {
         EnsureUnique(paints.Select(entry => entry.PaintKit), $"{owner} paint");
         foreach (var paint in paints)
         {
-            if (paint.PaintKit <= 0)
+            if (paint.PaintKit <= 0 || !Enum.IsDefined(paint.Rarity))
+                throw new InvalidDataException($"{owner} contains an invalid paint kit.");
+            ValidateWear(paint.WearMin, paint.WearMax, $"{owner}/{paint.PaintKit}");
+        }
+    }
+
+    private static void ValidateKnifePaints(
+        IReadOnlyList<KnifePaintCatalogEntry> paints,
+        string owner)
+    {
+        EnsureUnique(paints.Select(entry => entry.PaintKit), $"{owner} paint");
+        foreach (var paint in paints)
+        {
+            if (paint.PaintKit <= 0 || string.IsNullOrWhiteSpace(paint.Finish))
                 throw new InvalidDataException($"{owner} contains an invalid paint kit.");
             ValidateWear(paint.WearMin, paint.WearMax, $"{owner}/{paint.PaintKit}");
         }
@@ -163,20 +215,23 @@ internal sealed class CosmeticCatalog
 
     private sealed class CatalogDocument
     {
-        [JsonPropertyName("source")]
-        public CatalogSource Source { get; init; } = new();
-
         [JsonPropertyName("weapons")]
         public List<WeaponCatalogEntry> Weapons { get; init; } = [];
 
         [JsonPropertyName("knives")]
         public List<KnifeCatalogDocument> Knives { get; init; } = [];
 
+        [JsonPropertyName("knifeFinishPreferences")]
+        public List<KnifeFinishPreferenceDocument> KnifeFinishPreferences { get; init; } = [];
+
         [JsonPropertyName("gloves")]
         public List<GloveCatalogEntry> Gloves { get; init; } = [];
 
+        [JsonPropertyName("stickerCategories")]
+        public List<string> StickerCategories { get; init; } = [];
+
         [JsonPropertyName("stickerKits")]
-        public List<uint> StickerKits { get; init; } = [];
+        public List<StickerCatalogEntry> StickerKits { get; init; } = [];
 
         [JsonPropertyName("keychainDefinitions")]
         public List<uint> KeychainDefinitions { get; init; } = [];
@@ -185,21 +240,21 @@ internal sealed class CosmeticCatalog
         public List<int> MusicKits { get; init; } = [];
     }
 
-    private sealed class CatalogSource
-    {
-        [JsonPropertyName("repository")]
-        public string Repository { get; init; } = string.Empty;
-
-        [JsonPropertyName("commit")]
-        public string Commit { get; init; } = string.Empty;
-    }
-
     private sealed class KnifeCatalogDocument
     {
         [JsonPropertyName("defIndex")]
         public ushort DefIndex { get; init; }
 
         [JsonPropertyName("paints")]
-        public List<PaintCatalogEntry> Paints { get; init; } = [];
+        public List<KnifePaintCatalogEntry> Paints { get; init; } = [];
+    }
+
+    private sealed class KnifeFinishPreferenceDocument
+    {
+        [JsonPropertyName("finish")]
+        public string Finish { get; init; } = string.Empty;
+
+        [JsonPropertyName("weight")]
+        public int Weight { get; init; }
     }
 }
