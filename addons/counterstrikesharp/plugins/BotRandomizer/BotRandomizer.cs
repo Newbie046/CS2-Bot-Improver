@@ -15,7 +15,6 @@ namespace BotRandomizer;
 public sealed class BotRandomizerPlugin : BasePlugin
 {
     private readonly CosmeticStateStore _states = new();
-    private readonly RandomizerOptions _options = new();
     private readonly HashSet<int> _pendingRerolls = [];
 
     private CosmeticCatalog? _catalog;
@@ -164,7 +163,7 @@ public sealed class BotRandomizerPlugin : BasePlugin
     {
         ConsumePendingReroll(@event.Userid);
         var state = GetOrCreateState(@event.Userid);
-        if (state is null || !_options.Enabled)
+        if (state is null)
             return HookResult.Continue;
 
         var slot = state.Slot;
@@ -186,9 +185,7 @@ public sealed class BotRandomizerPlugin : BasePlugin
 
     private HookResult OnGiveNamedItemPre(DynamicHook hook)
     {
-        if (!_options.Enabled
-            || !_options.Weapons
-            || _catalog is null
+        if (_catalog is null
             || _roller is null
             || _weaponItemViews is null)
         {
@@ -218,8 +215,8 @@ public sealed class BotRandomizerPlugin : BasePlugin
                     state,
                     weapon,
                     selection,
-                    _options.Stickers,
-                    _options.Charms,
+                    includeStickers: true,
+                    includeCharms: true,
                     player.SteamID,
                     out var itemViewHandle))
             {
@@ -240,7 +237,7 @@ public sealed class BotRandomizerPlugin : BasePlugin
 
     private HookResult OnItemPickup(EventItemPickup @event, GameEventInfo info)
     {
-        if (!_options.Enabled || !_options.Knives || _applicator is null)
+        if (_applicator is null)
             return HookResult.Continue;
         if (string.IsNullOrEmpty(@event.Item)
             || (!@event.Item.Contains("knife", StringComparison.Ordinal)
@@ -283,24 +280,18 @@ public sealed class BotRandomizerPlugin : BasePlugin
             (byte)@event.Team,
             preserveMusic: true,
             music => _roller.RollLoadout((byte)@event.Team, music));
-        if (_options.Enabled)
-        {
-            var slot = player.Slot;
-            AddTimer(
-                0.10f,
-                () => RestoreBot(
-                    slot,
-                    CosmeticScope.Agent | CosmeticScope.Knife | CosmeticScope.Gloves),
-                TimerFlags.STOP_ON_MAPCHANGE);
-        }
+        var slot = player.Slot;
+        AddTimer(
+            0.10f,
+            () => RestoreBot(
+                slot,
+                CosmeticScope.Agent | CosmeticScope.Knife | CosmeticScope.Gloves),
+            TimerFlags.STOP_ON_MAPCHANGE);
         return HookResult.Continue;
     }
 
     private HookResult OnRoundMvp(EventRoundMvp @event, GameEventInfo info)
     {
-        if (!_options.Enabled || !_options.Music)
-            return HookResult.Continue;
-
         var state = GetOrCreateState(@event.Userid);
         var player = @event.Userid;
         if (state is null || player is null)
@@ -342,12 +333,12 @@ public sealed class BotRandomizerPlugin : BasePlugin
         if (_applicator is null)
             return;
 
-        if ((scope & CosmeticScope.Agent) != 0 && _options.Agents)
+        if ((scope & CosmeticScope.Agent) != 0)
         {
             _applicator.ApplyAgent(pawn, state.Loadout.AgentModel);
         }
 
-        if ((scope & CosmeticScope.MusicKit) != 0 && _options.Music)
+        if ((scope & CosmeticScope.MusicKit) != 0)
         {
             ApplyMusicKit(player, state.Loadout.MusicKit, 0);
         }
@@ -366,12 +357,12 @@ public sealed class BotRandomizerPlugin : BasePlugin
             return;
         }
 
-        if ((scope & CosmeticScope.Knife) != 0 && _options.Knives)
+        if ((scope & CosmeticScope.Knife) != 0)
         {
             _applicator.ApplyKnife(player, pawn, state.Loadout.Knife);
         }
 
-        if ((scope & CosmeticScope.Gloves) != 0 && _options.Gloves)
+        if ((scope & CosmeticScope.Gloves) != 0)
         {
             if (_applicator.ApplyGloves(player, pawn, state.Loadout.Glove))
             {
@@ -386,8 +377,7 @@ public sealed class BotRandomizerPlugin : BasePlugin
                             out _,
                             out var currentPawn,
                             out _)
-                        && currentPawn.Handle == pawnHandle
-                        && _options.Gloves)
+                        && currentPawn.Handle == pawnHandle)
                     {
                         _applicator.ShowGloves(currentPawn);
                     }
@@ -420,7 +410,6 @@ public sealed class BotRandomizerPlugin : BasePlugin
         void Callback()
         {
             if (_applicator is not null
-                && _options.Knives
                 && TryResolveCurrentBot(slot, userId, generation, out _, out var pawn, out _))
             {
                 _applicator.SyncPickedUpKnife(pawn);
@@ -444,7 +433,7 @@ public sealed class BotRandomizerPlugin : BasePlugin
         player = null!;
         pawn = null!;
         state = null!;
-        if (!_options.Enabled || !_states.IsCurrent(slot, userId, generation))
+        if (!_states.IsCurrent(slot, userId, generation))
             return false;
 
         var resolved = Utilities.GetPlayerFromSlot(slot);
@@ -503,58 +492,7 @@ public sealed class BotRandomizerPlugin : BasePlugin
         }
     }
 
-    [ConsoleCommand("br_status", "Show BotRandomizer runtime status")]
-    public void OnStatusCommand(CCSPlayerController? player, CommandInfo command)
-    {
-        command.ReplyToCommand(
-            $"BotRandomizer version={ModuleVersion} "
-            + $"enabled={Format(_options.Enabled)} native={Format(_applicator?.NativeAvailable == true)} "
-            + $"weapon_prebuild={Format(_weaponItemViews?.NativeAvailable == true)} "
-            + $"catalog={(_catalog is null ? "invalid" : "loaded")}");
-        command.ReplyToCommand(
-            $"weapons={Format(_options.Weapons)} knives={Format(_options.Knives)} "
-            + $"gloves={Format(_options.Gloves)} agents={Format(_options.Agents)} "
-            + $"music={Format(_options.Music)} stickers={Format(_options.Stickers)} "
-            + $"charms={Format(_options.Charms)} states={_states.States.Count}");
-    }
-
-    [ConsoleCommand("br_set", "Set a BotRandomizer runtime option")]
-    [RequiresPermissions("@css/cvar")]
-    public void OnSetCommand(CCSPlayerController? player, CommandInfo command)
-    {
-        if (command.ArgCount != 3 || !TryParseBoolean(command.GetArg(2), out var value))
-        {
-            command.ReplyToCommand(
-                "Usage: br_set <enabled|weapons|knives|gloves|agents|music|stickers|charms> <on|off>");
-            return;
-        }
-
-        var scope = command.GetArg(1).ToLowerInvariant() switch
-        {
-            "enabled" => SetOption(() => _options.Enabled = value, CosmeticScope.All),
-            "weapons" => SetOption(() => _options.Weapons = value, CosmeticScope.Weapons),
-            "knives" => SetOption(() => _options.Knives = value, CosmeticScope.Knife),
-            "gloves" => SetOption(() => _options.Gloves = value, CosmeticScope.Gloves),
-            "agents" => SetOption(() => _options.Agents = value, CosmeticScope.Agent),
-            "music" => SetOption(() => _options.Music = value, CosmeticScope.MusicKit),
-            "stickers" => SetOption(() => _options.Stickers = value, CosmeticScope.Weapons),
-            "charms" => SetOption(() => _options.Charms = value, CosmeticScope.Weapons),
-            _ => CosmeticScope.None
-        };
-
-        if (scope == CosmeticScope.None)
-        {
-            command.ReplyToCommand("Unknown BotRandomizer option.");
-            return;
-        }
-
-        command.ReplyToCommand($"{command.GetArg(1)}={Format(value)}");
-        if (_options.Enabled && (value || scope == CosmeticScope.Weapons))
-            RestoreAllBots(scope);
-    }
-
     [ConsoleCommand("br_reroll", "Queue new loadouts for the next safe spawn")]
-    [RequiresPermissions("@css/cvar")]
     public void OnRerollCommand(CCSPlayerController? player, CommandInfo command)
     {
         if (_roller is null)
@@ -596,17 +534,6 @@ public sealed class BotRandomizerPlugin : BasePlugin
             $"Queued {bots.Length} bot loadout(s) for the next safe spawn.");
     }
 
-    private CosmeticScope SetOption(Action setter, CosmeticScope scope)
-    {
-        setter();
-        foreach (var state in _states.States)
-        {
-            _states.BumpGeneration(state.Slot);
-            _applicator?.ClearSlot(state.Slot);
-        }
-        return scope;
-    }
-
     private void ConsumePendingReroll(CCSPlayerController? player)
     {
         if (_roller is null
@@ -639,30 +566,6 @@ public sealed class BotRandomizerPlugin : BasePlugin
         var player = new CCSPlayerController(controller.Handle);
         return player is { IsValid: true, IsBot: true, IsHLTV: false } ? player : null;
     }
-
-    private static bool TryParseBoolean(string value, out bool result)
-    {
-        switch (value.Trim().ToLowerInvariant())
-        {
-            case "1":
-            case "on":
-            case "true":
-            case "yes":
-                result = true;
-                return true;
-            case "0":
-            case "off":
-            case "false":
-            case "no":
-                result = false;
-                return true;
-            default:
-                result = false;
-                return false;
-        }
-    }
-
-    private static string Format(bool value) => value ? "on" : "off";
 
     private static void ApplyMusicKit(CCSPlayerController player, int kitId, int musicKitMvps)
     {
